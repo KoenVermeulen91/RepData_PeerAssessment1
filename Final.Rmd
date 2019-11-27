@@ -7,35 +7,105 @@ keep_md: TRUE
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+```
+
+```{r, results = 'hide'}
+# Opening necessary libraries
+library(dplyr)
+library(lubridate)
+library(ggplot2)
 ```
 
 ## Loading and preprocessing the data
 ```{r}
-
+Activity <- read.csv(unzip("activity.zip"))
 ```
 
 
 ## What is mean total number of steps taken per day?
-```{r}
 
+1. Calculate the total number of steps taken per day
+
+```{r}
+Date <- Activity %>%
+        group_by(date) %>%
+        summarise(Sum_steps = sum(steps), 
+                  Mean_steps = round(mean(steps), 2),
+                  Median_steps = round(median(steps), 2)) 
+        
+print(Date[, c("date", "Sum_steps")])
 ```
 
+2. Make a histogram of the total number of steps taken each day
+```{r}
+barplot(Date$Sum_steps, xlab = "day", ylab = "total number of steps")
+```
+
+3. Calculate and report the mean and median of the total number of steps taken per day
+```{r}
+barplot(Date$Mean_steps, xlab = "day", ylab = "Average number of steps")
+barplot(Date$Median_steps, xlab = "day", ylab = "Median number of steps", ylim = c(0, 70))
+mean(Activity$steps, na.rm = T)
+median(Activity$steps, na.rm = T)
+```
 
 ## What is the average daily activity pattern?
-```{r}
 
+1. Make a time series plot (i.e. type="l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+
+```{r}
+Interval <- Activity %>%
+        group_by(interval) %>%
+        summarise(Mean_steps = round(mean(steps, na.rm = T), 2))
+
+plot(Interval$Mean_steps)
 ```
 
+2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
 
 ## Imputing missing values
 ```{r}
+ActivityImputed <- left_join(Activity, Interval, by = c("interval"))
+ActivityImputed <- ActivityImputed %>%
+        mutate(steps = ifelse(is.na(steps), Mean_steps, steps)) %>%
+        select(steps, date, interval)
+
+DateImputed <- ActivityImputed %>%
+        group_by(date) %>%
+        summarise(Sum_steps = sum(steps), 
+                  Mean_steps = round(mean(steps), 2),
+                  Median_steps = round(median(steps), 2)) 
+        
+barplot(Date$Sum_steps)
 
 ```
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
 ```{r}
+ActivityImputed <- ActivityImputed %>%
+        mutate(date = as.Date(date)) %>%
+        mutate(day = weekdays(date)) %>%
+        mutate(weekend = ifelse(day %in% c("Saturday", "Sunday"), 1, 0)) %>%
+        mutate(weekday = ifelse(weekend == 1, 0, 1)) %>%
+        select(steps, date, interval, day, weekday, weekend)
+
+Weekday <- ActivityImputed %>%
+        filter(weekday == 1) %>%
+        group_by(interval) %>%
+        summarise(Mean_steps = round(mean(steps, na.rm = T), 2))
+
+Weekend <- ActivityImputed %>%
+        filter(weekend == 1) %>%
+        group_by(interval) %>%
+        summarise(Mean_steps = round(mean(steps, na.rm = T), 2))
+
+plot(Weekday$Mean_steps)
+plot(Weekend$Mean_steps)
+
+#Lattice!
+
 
 ```
 
